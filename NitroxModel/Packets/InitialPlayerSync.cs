@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using NitroxModel.DataStructures;
 using NitroxModel.DataStructures.GameLogic;
+using NitroxModel.DataStructures.Unity;
 using NitroxModel.DataStructures.Util;
 using NitroxModel.Server;
 
 namespace NitroxModel.Packets
 {
     [Serializable]
-    public class InitialPlayerSync : Packet, IShortString
+    public class InitialPlayerSync : Packet
     {
         public NitroxId AssignedEscapePodId;
         public List<EscapePodModel> EscapePodsData { get; }
@@ -18,11 +19,14 @@ namespace NitroxModel.Packets
         public List<BasePiece> BasePieces { get; }
         public List<VehicleModel> Vehicles { get; }
         public List<ItemData> InventoryItems { get; }
-        public List<ItemData> StorageSlots { get; }
+        public List<ItemData> StorageSlotItems { get; }
+        public List<NitroxTechType> UsedItems { get; }
+        public List<string> QuickSlotsBinding { get; }
         public NitroxId PlayerGameObjectId { get; }
         public bool FirstTimeConnecting { get; }
         public InitialPDAData PDAData { get; }
         public InitialStoryGoalData StoryGoalData { get; }
+        public HashSet<string> CompletedGoals { get; }
         public NitroxVector3 PlayerSpawnData { get; }
         public Optional<NitroxId> PlayerSubRootId { get; }
         public PlayerStatsData PlayerStatsData { get; }
@@ -41,9 +45,12 @@ namespace NitroxModel.Packets
             IEnumerable<BasePiece> basePieces,
             IEnumerable<VehicleModel> vehicles,
             IEnumerable<ItemData> inventoryItems,
-            IEnumerable<ItemData> storageSlots,
+            IEnumerable<ItemData> storageSlotItems,
+            IEnumerable<NitroxTechType> usedItems,
+            IEnumerable<string> quickSlotsBinding,
             InitialPDAData pdaData,
             InitialStoryGoalData storyGoalData,
+            HashSet<string> completedGoals,
             NitroxVector3 playerSpawnData,
             Optional<NitroxId> playerSubRootId,
             PlayerStatsData playerStatsData,
@@ -62,9 +69,12 @@ namespace NitroxModel.Packets
             BasePieces = basePieces.ToList();
             Vehicles = vehicles.ToList();
             InventoryItems = inventoryItems.ToList();
-            StorageSlots = storageSlots.ToList();
+            StorageSlotItems = storageSlotItems.ToList();
+            UsedItems = usedItems.ToList();
+            QuickSlotsBinding = quickSlotsBinding.ToList();
             PDAData = pdaData;
             StoryGoalData = storyGoalData;
+            CompletedGoals = completedGoals;
             PlayerSpawnData = playerSpawnData;
             PlayerSubRootId = playerSubRootId;
             PlayerStatsData = playerStatsData;
@@ -73,16 +83,6 @@ namespace NitroxModel.Packets
             InitialSimulationOwnerships = initialSimulationOwnerships.ToList();
             GameMode = gameMode;
             Permissions = perms;
-        }
-
-        public override string ToString()
-        {
-            return $"[InitialPlayerSync - GameMode: {GameMode}, EquippedItems: {EquippedItems} BasePieces: {BasePieces} Vehicles: {Vehicles} InventoryItems: {InventoryItems} PDAData: {PDAData} StoryGoalData: {StoryGoalData}]";
-        }
-
-        public string ToShortString()
-        {
-            return $"Equipped items count: {EquippedItems.Count}\n, Base pieces count: {BasePieces.Count}\n, Vehicles count: {Vehicles.Count}\n, Inventory items count: {InventoryItems.Count}";
         }
     }
 }

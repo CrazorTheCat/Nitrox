@@ -7,8 +7,7 @@ using NitroxModel.DataStructures.GameLogic;
 using NitroxModel.DataStructures.GameLogic.Entities;
 using NitroxModel.DataStructures.Util;
 using NitroxModel.Helper;
-using NitroxModel.Logger;
-using NitroxModel.OS;
+using NitroxModel.Platforms.OS.Shared;
 using NitroxModel.Server;
 using NitroxServer.GameLogic;
 using NitroxServer.GameLogic.Bases;
@@ -19,6 +18,7 @@ using NitroxServer.GameLogic.Players;
 using NitroxServer.GameLogic.Unlockables;
 using NitroxServer.GameLogic.Vehicles;
 using NitroxServer.Serialization.Resources.Datastructures;
+using NitroxServer.Serialization.Upgrade;
 
 namespace NitroxServer.Serialization.World
 {
@@ -28,16 +28,31 @@ namespace NitroxServer.Serialization.World
         private string FileEnding => Serializer?.FileEnding ?? "";
 
         private readonly ServerProtoBufSerializer protoBufSerializer;
-        private readonly RandomStartGenerator randomStart;
+        private readonly ServerJsonSerializer jsonSerializer;
         private readonly ServerConfig config;
+        private readonly RandomStartGenerator randomStart;
+        private readonly SaveDataUpgrade[] upgrades;
 
-        public WorldPersistence(ServerProtoBufSerializer protoBufSerializer, ServerJsonSerializer jsonSerializer, ServerConfig config, RandomStartGenerator randomStart)
+        public WorldPersistence(ServerProtoBufSerializer protoBufSerializer, ServerJsonSerializer jsonSerializer, ServerConfig config, RandomStartGenerator randomStart, SaveDataUpgrade[] upgrades)
         {
             this.protoBufSerializer = protoBufSerializer;
-            this.randomStart = randomStart;
+            this.jsonSerializer = jsonSerializer;
             this.config = config;
+            this.randomStart = randomStart;
+            this.upgrades = upgrades;
 
-            Serializer = config.SerializerMode == ServerSerializerMode.PROTOBUF ? protoBufSerializer : jsonSerializer;
+            UpdateSerializer(config.SerializerMode);
+        }
+
+        internal void UpdateSerializer(IServerSerializer serverSerializer)
+        {
+            Validate.NotNull(serverSerializer, "Serializer cannot be null");
+            Serializer = serverSerializer;
+        }
+
+        internal void UpdateSerializer(ServerSerializerMode mode)
+        {
+            Serializer = (mode == ServerSerializerMode.PROTOBUF) ? protoBufSerializer : jsonSerializer;
         }
 
         public bool Save(World world, string saveDir)
@@ -78,12 +93,9 @@ namespace NitroxServer.Serialization.World
             try
             {
                 PersistedWorldData persistedData = new();
-                SaveFileVersion saveFileVersion = Serializer.Deserialize<SaveFileVersion>(Path.Combine(saveDir, $"Version{FileEnding}"));
 
-                if (saveFileVersion == null || saveFileVersion.Version != NitroxEnvironment.Version)
-                {
-                    throw new InvalidDataException("Version file is empty or save data files are too old");
-                }
+
+                UpgradeSave(saveDir);
 
                 persistedData.BaseData = Serializer.Deserialize<BaseData>(Path.Combine(saveDir, $"BaseData{FileEnding}"));
                 persistedData.PlayerData = Serializer.Deserialize<PlayerData>(Path.Combine(saveDir, $"PlayerData{FileEnding}"));
@@ -105,7 +117,7 @@ namespace NitroxServer.Serialization.World
 
                 //Backup world if loading fails
                 string outZip = Path.Combine(saveDir, "worldBackup.zip");
-                Log.Warn($"Creating a backup at {Path.GetFullPath(outZip)}");
+                Log.WarnSensitive("Creating a backup at {path}", Path.GetFullPath(outZip));
                 FileSystem.Instance.ZipFilesInDirectory(saveDir, outZip, $"*{FileEnding}", true);
             }
 
@@ -142,9 +154,10 @@ namespace NitroxServer.Serialization.World
                     InventoryData = InventoryData.From(new List<ItemData>(), new List<ItemData>(), new List<EquippedItemData>()),
                     VehicleData = VehicleData.From(new List<VehicleModel>()),
                     ParsedBatchCells = new List<NitroxInt3>(),
-                    ServerStartTime = DateTime.Now,
 #if DEBUG
                     Seed = "TCCBIBZXAB"
+#else
+                    Seed = config.Seed
 #endif
                 }
             };
@@ -164,8 +177,6 @@ namespace NitroxServer.Serialization.World
 
             World world = new()
             {
-                TimeKeeper = new TimeKeeper { ServerStartTime = pWorldData.WorldData.ServerStartTime },
-
                 SimulationOwnershipData = new SimulationOwnershipData(),
                 PlayerManager = new PlayerManager(pWorldData.PlayerData.GetPlayers(), config),
 
@@ -182,6 +193,7 @@ namespace NitroxServer.Serialization.World
 
             world.EventTriggerer = new EventTriggerer(world.PlayerManager, pWorldData.WorldData.GameData.StoryTiming.ElapsedTime, pWorldData.WorldData.GameData.StoryTiming.AuroraExplosionTime);
             world.VehicleManager = new VehicleManager(pWorldData.WorldData.VehicleData.Vehicles, world.InventoryManager);
+            world.ScheduleKeeper = new ScheduleKeeper(pWorldData.WorldData.GameData.PDAState, pWorldData.WorldData.GameData.StoryGoals, world.EventTriggerer, world.PlayerManager);
 
             world.BatchEntitySpawner = new BatchEntitySpawner(
                 NitroxServiceLocator.LocateService<EntitySpawnPointFactory>(),
@@ -202,9 +214,47 @@ namespace NitroxServer.Serialization.World
             return world;
         }
 
-        internal void UpdateSerializer(IServerSerializer serializer)
+        private void UpgradeSave(string saveDir)
         {
-            this.Serializer = serializer;
+            SaveFileVersion saveFileVersion = Serializer.Deserialize<SaveFileVersion>(Path.Combine(saveDir, $"Version{FileEnding}"));
+
+            // SaveFileVersion structure was updated in V1.5.0.0
+            // This can be removed with V1.6.0.0 or later
+            if (File.ReadAllText(Path.Combine(saveDir, $"Version{FileEnding}")).Contains("BaseDataVersion"))
+            {
+                saveFileVersion = new SaveFileVersion(new Version(1, 4, 0, 0));
+            }
+
+            if (saveFileVersion.Version == NitroxEnvironment.Version)
+            {
+                return;
+            }
+
+            if (config.SerializerMode == ServerSerializerMode.PROTOBUF)
+            {
+                Log.Info("Can't upgrade while using ProtoBuf as serializer");
+            }
+            else
+            {
+                try
+                {
+                    foreach (SaveDataUpgrade upgrade in upgrades)
+                    {
+                        if (upgrade.TargetVersion > saveFileVersion.Version)
+                        {
+                            upgrade.UpgradeSaveFiles(saveDir, FileEnding);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Error while upgrading save file.");
+                    return;
+                }
+
+                Serializer.Serialize(Path.Combine(saveDir, $"Version{FileEnding}"), new SaveFileVersion());
+                Log.Info($"Save file was upgraded to {NitroxEnvironment.Version}");
+            }
         }
     }
 }

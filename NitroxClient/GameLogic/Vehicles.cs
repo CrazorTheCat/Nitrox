@@ -9,9 +9,9 @@ using NitroxClient.Unity.Helper;
 using NitroxModel.Core;
 using NitroxModel.DataStructures;
 using NitroxModel.DataStructures.GameLogic;
+using NitroxModel.DataStructures.Unity;
 using NitroxModel.DataStructures.Util;
 using NitroxModel.Helper;
-using NitroxModel.Logger;
 using NitroxModel.Packets;
 using NitroxModel_Subnautica.DataStructures;
 using NitroxModel_Subnautica.DataStructures.GameLogic;
@@ -66,7 +66,7 @@ namespace NitroxClient.GameLogic
 
                     if (techType == TechType.Exosuit)
                     {   //For odd reasons the default colors aren't set yet for exosuit so we force it
-                        opvehicle.Value.ReflectionCall("RegenerateRenderInfo", false, false);
+                        ((Exosuit)opvehicle.Value).RegenerateRenderInfo();
                     }
 
                     hsb = opvehicle.Value.subName.AliveOrNull()?.GetColors().ToDto();
@@ -77,7 +77,7 @@ namespace NitroxClient.GameLogic
                     {
                         GameObject target = NitroxEntity.RequireObjectFrom(constructedObjectId);
                         SubNameInput subNameInput = target.RequireComponentInChildren<SubNameInput>();
-                        SubName subNameTarget = (SubName)subNameInput.ReflectionGet("target");
+                        SubName subNameTarget = subNameInput.target;
 
                         name = subNameTarget.GetName();
                         hsb = subNameTarget.AliveOrNull()?.GetColors().ToDto();
@@ -142,9 +142,9 @@ namespace NitroxClient.GameLogic
             if (opEnergy.HasValue)
             {
                 EnergyMixin mixin = opEnergy.Value;
-                mixin.ReflectionSet("allowedToPlaySounds", false);
+                mixin.allowedToPlaySounds = false;
                 mixin.SetBattery(mixin.defaultBattery, 1);
-                mixin.ReflectionSet("allowedToPlaySounds", true);
+                mixin.allowedToPlaySounds = true;
             }
 
             foreach (InteractiveChildObjectIdentifier identifier in childIdentifiers)
@@ -158,9 +158,9 @@ namespace NitroxClient.GameLogic
                     if (opEnergyMixin.HasValue)
                     {
                         EnergyMixin mixin = opEnergyMixin.Value;
-                        mixin.ReflectionSet("allowedToPlaySounds", false);
+                        mixin.allowedToPlaySounds = false;
                         mixin.SetBattery(mixin.defaultBattery, 1);
-                        mixin.ReflectionSet("allowedToPlaySounds", true);
+                        mixin.allowedToPlaySounds = true;
                     }
                 }
             }
@@ -301,7 +301,7 @@ namespace NitroxClient.GameLogic
                 else if (techType == TechType.Exosuit)
                 {
                     // exosuits tend to fall through the ground after spawning. This should prevent that
-                    vehicle.ReflectionSet("onGround", true);
+                    vehicle.onGround = true;
                 }
 
                 if (!string.IsNullOrEmpty(name))
@@ -322,7 +322,7 @@ namespace NitroxClient.GameLogic
             {
                 GameObject target = NitroxEntity.RequireObjectFrom(id);
                 SubNameInput subNameInput = target.RequireComponentInChildren<SubNameInput>();
-                SubName subNameTarget = (SubName)subNameInput.ReflectionGet("target");
+                SubName subNameTarget = subNameInput.target;
 
                 subNameInput.OnNameChange(name);
                 subNameTarget.DeserializeColors(hsb);
@@ -383,7 +383,7 @@ namespace NitroxClient.GameLogic
 
                 if (vehicle.GetPilotingMode()) //Check Local Object Have Player inside
                 {
-                    vehicle.ReflectionCall("OnPilotModeEnd", false, false, null);
+                    vehicle.OnPilotModeEnd();
 
                     if (!Player.main.ToNormalMode(true))
                     {
@@ -596,8 +596,7 @@ namespace NitroxClient.GameLogic
 
         public Optional<T> TryGetVehicle<T>(NitroxId vehicleId) where T : VehicleModel
         {
-            VehicleModel vehicle;
-            vehiclesById.TryGetValue(vehicleId, out vehicle);
+            vehiclesById.TryGetValue(vehicleId, out VehicleModel vehicle);
             return Optional.OfNullable((T)vehicle);
         }
     }

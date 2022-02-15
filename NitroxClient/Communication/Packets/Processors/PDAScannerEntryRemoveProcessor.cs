@@ -1,10 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.Reflection;
 using NitroxClient.Communication.Abstract;
 using NitroxClient.Communication.Packets.Processors.Abstract;
 using NitroxModel.Packets;
 using NitroxModel_Subnautica.DataStructures;
-using NitroxModel_Subnautica.Helper;
 
 namespace NitroxClient.Communication.Packets.Processors
 {
@@ -21,14 +19,11 @@ namespace NitroxClient.Communication.Packets.Processors
         {
             using (packetSender.Suppress<PDAEntryRemove>())
             {
-                PDAScanner.Entry entry;
 
-                if (PDAScanner.GetPartialEntryByKey(packet.TechType.ToUnity(), out entry))
+                if (PDAScanner.GetPartialEntryByKey(packet.TechType.ToUnity(), out PDAScanner.Entry entry))
                 {
-                    List<PDAScanner.Entry> partial = (List<PDAScanner.Entry>)(typeof(PDAScanner).GetField("partial", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null));
-                    HashSet<TechType> complete = (HashSet<TechType>)(typeof(PDAScanner).GetField("complete", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null));
-                    partial.Remove(entry);
-                    complete.Add(entry.techType);
+                    PDAScanner.partial.Remove(entry);
+                    PDAScanner.complete.Add(entry.techType);
                 }
             }
         }

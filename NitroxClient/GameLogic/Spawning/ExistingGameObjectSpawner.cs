@@ -2,7 +2,6 @@
 using NitroxClient.MonoBehaviours;
 using NitroxModel.DataStructures.GameLogic;
 using NitroxModel.DataStructures.Util;
-using NitroxModel.Logger;
 using UnityEngine;
 
 namespace NitroxClient.GameLogic.Spawning
@@ -26,9 +25,9 @@ namespace NitroxClient.GameLogic.Spawning
                 Log.Error($"Parent {parent.Value} did not have a child at index {entity.ExistingGameObjectChildIndex.Value}");
                 return Optional.Empty;
             }
-            
+
             GameObject gameObject = parent.Value.transform.GetChild(entity.ExistingGameObjectChildIndex.Value).gameObject;
-            
+
             NitroxEntity.SetNewId(gameObject, entity.Id);
 
             Optional<EntityMetadataProcessor> metadataProcessor = EntityMetadataProcessor.FromMetaData(entity.Metadata);
@@ -37,7 +36,7 @@ namespace NitroxClient.GameLogic.Spawning
             {
                 metadataProcessor.Value.ProcessMetadata(gameObject, entity.Metadata);
             }
-                    
+
             return Optional.Of(gameObject);
         }
 

@@ -9,28 +9,30 @@ namespace NitroxServer.Communication.Packets.Processors
     {
         private readonly PlayerManager playerManager;
         private readonly StoryGoalData storyGoalData;
+        private readonly ScheduleKeeper scheduleKeeper;
 
-        public StoryEventSendProcessor(PlayerManager playerManager, StoryGoalData storyGoalData)
+        public StoryEventSendProcessor(PlayerManager playerManager, StoryGoalData storyGoalData, ScheduleKeeper scheduleKeeper)
         {
             this.playerManager = playerManager;
             this.storyGoalData = storyGoalData;
+            this.scheduleKeeper = scheduleKeeper;
         }
 
         public override void Process(StoryEventSend packet, Player player)
         {
-            switch (packet.StoryEventType)
+            switch (packet.Type)
             {
-                case StoryEventType.RADIO:
+                case StoryEventSend.EventType.RADIO:
                     if (!storyGoalData.RadioQueue.Contains(packet.Key))
                     {
                         storyGoalData.RadioQueue.Add(packet.Key);
                     }
                     break;
-                case StoryEventType.GOAL_UNLOCK:
+                case StoryEventSend.EventType.GOAL_UNLOCK:
                     if (!storyGoalData.GoalUnlocks.Contains(packet.Key))
                     {
                         storyGoalData.GoalUnlocks.Add(packet.Key);
-                        packet = new StoryEventSend(StoryEventType.STORY, packet.Key);
+                        packet = new StoryEventSend(StoryEventSend.EventType.STORY, packet.Key);
                     }
                     break;
                 default:
@@ -39,6 +41,11 @@ namespace NitroxServer.Communication.Packets.Processors
                         storyGoalData.CompletedGoals.Add(packet.Key);
                     }
                     break;
+            }
+
+            if (scheduleKeeper.ContainsScheduledGoal(packet.Key))
+            {
+                scheduleKeeper.UnScheduleGoal(packet.Key);
             }
             playerManager.SendPacketToOtherPlayers(packet, player);
         }

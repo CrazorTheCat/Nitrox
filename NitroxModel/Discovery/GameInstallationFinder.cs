@@ -20,18 +20,15 @@ namespace NitroxModel.Discovery
         /// </summary>
         private readonly IFindGameInstallation[] finders = {
             new GameInCurrentDirectoryFinder(),
-            new ConfigFileGameFinder(),
+            new ConfigGameFinder(),
             new SteamGameRegistryFinder(),
             new EpicGamesInstallationFinder(),
+            new DiscordGameFinder()
         };
 
         public string FindGame(IList<string> errors = null)
         {
-            if (errors == null)
-            {
-                errors = new List<string>();
-            }
-
+            errors ??= new List<string>();
             foreach (IFindGameInstallation finder in finders)
             {
                 string path = finder.FindGame(errors);
@@ -39,7 +36,7 @@ namespace NitroxModel.Discovery
                 {
                     continue;
                 }
-                
+
                 errors.Clear();
                 return Path.GetFullPath(path);
             }
@@ -54,7 +51,7 @@ namespace NitroxModel.Discovery
                 return false;
             }
 
-            return Directory.EnumerateFileSystemEntries(directory, "*.exe")
+            return Directory.EnumerateFiles(directory, "*.exe")
                 .Any(file => Path.GetFileName(file)?.Equals("subnautica.exe", StringComparison.OrdinalIgnoreCase) ?? false);
         }
     }

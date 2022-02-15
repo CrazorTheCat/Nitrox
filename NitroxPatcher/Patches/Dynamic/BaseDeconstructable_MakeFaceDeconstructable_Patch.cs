@@ -1,16 +1,15 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using HarmonyLib;
 using NitroxClient.GameLogic.Bases;
 using NitroxModel.Core;
+using NitroxModel.Helper;
 using UnityEngine;
 
 namespace NitroxPatcher.Patches.Dynamic
 {
     public class BaseDeconstructable_MakeFaceDeconstructable_Patch : NitroxPatch, IDynamicPatch
     {
-        public static readonly Type TARGET_CLASS = typeof(BaseDeconstructable);
-        public static readonly MethodInfo TARGET_METHOD = TARGET_CLASS.GetMethod("MakeFaceDeconstructable", BindingFlags.Public | BindingFlags.Static);
+        public static readonly MethodInfo TARGET_METHOD = Reflect.Method(() => BaseDeconstructable.MakeFaceDeconstructable(default(Transform), default(Int3.Bounds), default(Base.Face), default(Base.FaceType), default(TechType)));
 
         /**
          * This function is called directly after spawning a new BasePiece to add BaseDeconstructable.
@@ -18,11 +17,11 @@ namespace NitroxPatcher.Patches.Dynamic
          */
         public static void Postfix(Transform geometry, Base.Face face)
         {
-            if(!geometry || !geometry.gameObject)
+            if (!geometry || !geometry.gameObject)
             {
                 return;
             }
-            
+
             NitroxServiceLocator.LocateService<GeometryRespawnManager>().BaseFaceRespawned(geometry.gameObject, face.cell, face.direction);
         }
 

@@ -1,43 +1,54 @@
-using System;
-using System.Timers;
-using NitroxModel.Logger;
-using NitroxServer.Serialization.World;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Linq;
+using System.Net;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using NitroxModel.Helper;
+using NitroxServer.GameLogic.Entities;
 using NitroxServer.Serialization;
-using NitroxModel.Serialization;
+using NitroxServer.Serialization.World;
+using Timer = System.Timers.Timer;
 
 namespace NitroxServer
 {
     public class Server
     {
-        private readonly Communication.NetworkingLayer.NitroxServer server;
+        private readonly Communication.NitroxServer server;
         private readonly WorldPersistence worldPersistence;
         private readonly ServerConfig serverConfig;
         private readonly Timer saveTimer;
         private readonly World world;
+        private readonly EntityManager entityManager;
+        private CancellationTokenSource serverCancelSource;
 
         public static Server Instance { get; private set; }
 
-        public bool IsRunning { get; private set; }
+        public bool IsRunning => serverCancelSource?.IsCancellationRequested == false;
         public bool IsSaving { get; private set; }
 
         public int Port => serverConfig?.ServerPort ?? -1;
 
-        public Server(WorldPersistence worldPersistence, World world, ServerConfig serverConfig, Communication.NetworkingLayer.NitroxServer server)
+        public Server(WorldPersistence worldPersistence, World world, ServerConfig serverConfig, Communication.NitroxServer server, EntityManager entityManager)
         {
             this.worldPersistence = worldPersistence;
             this.serverConfig = serverConfig;
             this.server = server;
             this.world = world;
+            this.entityManager = entityManager;
 
             Instance = this;
 
             saveTimer = new Timer();
             saveTimer.Interval = serverConfig.SaveInterval;
             saveTimer.AutoReset = true;
-            saveTimer.Elapsed += delegate { Save(); };
+            saveTimer.Elapsed += delegate
+            {
+                Save();
+            };
         }
 
         public string SaveSummary
@@ -45,17 +56,22 @@ namespace NitroxServer
             get
             {
                 // TODO: Extend summary with more useful save file data
-                StringBuilder builder = new StringBuilder("\n");
+                // Note for later additions: order these lines by their length
+                StringBuilder builder = new("\n");
                 builder.AppendLine($" - Save location: {Path.GetFullPath(serverConfig.SaveName)}");
-                builder.AppendLine($" - Radio messages stored: {world.GameData.StoryGoals.RadioQueue.Count}");
+                builder.AppendLine($" - Current time: day {world.EventTriggerer.Day} ({Math.Floor(world.EventTriggerer.ElapsedSeconds)}s)");
+                builder.AppendLine($" - Scheduled goals stored: {world.GameData.StoryGoals.ScheduledGoals.Count}");
                 builder.AppendLine($" - Story goals completed: {world.GameData.StoryGoals.CompletedGoals.Count}");
+                builder.AppendLine($" - Radio messages stored: {world.GameData.StoryGoals.RadioQueue.Count}");
+                builder.AppendLine($" - World gamemode: {serverConfig.GameMode}");
                 builder.AppendLine($" - Story goals unlocked: {world.GameData.StoryGoals.GoalUnlocks.Count}");
                 builder.AppendLine($" - Encyclopedia entries: {world.GameData.PDAState.EncyclopediaEntries.Count}");
                 builder.AppendLine($" - Storage slot items: {world.InventoryManager.GetAllStorageSlotItems().Count}");
                 builder.AppendLine($" - Inventory items: {world.InventoryManager.GetAllInventoryItems().Count}");
+                builder.AppendLine($" - Progress tech: {world.GameData.PDAState.CachedProgress.Count}");
                 builder.AppendLine($" - Known tech: {world.GameData.PDAState.KnownTechTypes.Count}");
                 builder.AppendLine($" - Vehicles: {world.VehicleManager.GetVehicles().Count()}");
-
+                
                 return builder.ToString();
             }
         }
@@ -68,32 +84,72 @@ namespace NitroxServer
             }
 
             IsSaving = true;
-            NitroxConfig.Serialize(serverConfig); // This is overwriting the config file => server has to be closed before making changes to it
-            worldPersistence.Save(world, serverConfig.SaveName);
+
+            bool savedSuccessfully = worldPersistence.Save(world, serverConfig.SaveName);
+            if (savedSuccessfully && !string.IsNullOrWhiteSpace(serverConfig.PostSaveCommandPath))
+            {
+                try
+                {
+                    // Call external tool for backups, etc
+                    if (File.Exists(serverConfig.PostSaveCommandPath))
+                    {
+                        using Process process = Process.Start(serverConfig.PostSaveCommandPath);
+                        Log.Info($"Post-save command completed successfully: {serverConfig.PostSaveCommandPath}");
+                    }
+                    else
+                    {
+                        Log.Error($"Post-save file does not exist: {serverConfig.PostSaveCommandPath}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Post-save command failed");
+                }
+            }
             IsSaving = false;
         }
 
-        public bool Start()
+        public bool Start(CancellationTokenSource cancellationToken)
         {
+            serverCancelSource = cancellationToken;
             if (!server.Start())
             {
                 return false;
             }
 
+            try
+            {
+                if (serverConfig.CreateFullEntityCache)
+                {
+                    Log.Info("Starting to load all batches up front.");
+                    Log.Info("This can take up to several minutes and you can't join until it's completed.");
+                    Log.Info($"{entityManager.GetAllEntities().Count} entities already cached");
+                    if (entityManager.GetAllEntities().Count < 504732)
+                    {
+                        entityManager.LoadAllUnspawnedEntities(serverCancelSource.Token);
+
+                        Log.Info("Saving newly cached entities.");
+                        Save();
+                    }
+                    Log.Info("All batches have now been loaded.");
+                }
+            }
+            catch (OperationCanceledException ex)
+            {
+                Log.Warn($"Server start was cancelled by user:{Environment.NewLine}{ex.Message}");
+                return false;
+            }
+            
+            LogHowToConnectAsync().ConfigureAwait(false);
             Log.Info($"Server is listening on port {Port} UDP");
             Log.Info($"Using {serverConfig.SerializerMode} as save file serializer");
             Log.InfoSensitive("Server Password: {password}", string.IsNullOrEmpty(serverConfig.ServerPassword) ? "None. Public Server." : serverConfig.ServerPassword);
             Log.InfoSensitive("Admin Password: {password}", serverConfig.AdminPassword);
             Log.Info($"Autosave: {(serverConfig.DisableAutoSave ? "DISABLED" : $"ENABLED ({serverConfig.SaveInterval / 60000} min)")}");
-            Log.Info($"World GameMode: {serverConfig.GameMode}");
             Log.Info($"Loaded save\n{SaveSummary}");
 
             PauseServer();
 
-            IsRunning = true;
-#if RELEASE
-            IpLogger.PrintServerIps();
-#endif
             return true;
         }
 
@@ -104,15 +160,42 @@ namespace NitroxServer
                 return;
             }
 
+            serverCancelSource.Cancel();
             Log.Info("Nitrox Server Stopping...");
             DisablePeriodicSaving();
+
             if (shouldSave)
             {
                 Save();
             }
+
             server.Stop();
             Log.Info("Nitrox Server Stopped");
-            IsRunning = false;
+        }
+
+        private async Task LogHowToConnectAsync()
+        {
+            Task<IPAddress> localIp = Task.Factory.StartNew(NetHelper.GetLanIp);
+            Task<IPAddress> wanIp = NetHelper.GetWanIpAsync();
+            Task<IPAddress> hamachiIp = Task.Factory.StartNew(NetHelper.GetHamachiIp);
+
+            List<string> options = new();
+            options.Add("127.0.0.1 - You (Local)");
+            if (await wanIp != null)
+            {
+                options.Add("{ip:l} - Friends on another internet network (Port Forwarding)");
+            }
+            if (await hamachiIp != null)
+            {
+                options.Add($"{hamachiIp.Result} - Friends using Hamachi (VPN)");
+            }
+            // LAN IP could be null if all Ethernet/Wi-Fi interfaces are disabled.
+            if (await localIp != null)
+            {
+                options.Add($"{localIp.Result} - Friends on same internet network (LAN)");
+            }
+
+            Log.InfoSensitive($"Use IP to connect:{Environment.NewLine}\t{string.Join($"{Environment.NewLine}\t", options)}", wanIp.Result);
         }
 
         public void StopAndWait(bool shouldSave = true)
@@ -137,7 +220,7 @@ namespace NitroxServer
             DisablePeriodicSaving();
             world.EventTriggerer.PauseWorldTime();
             world.EventTriggerer.PauseEventTimers();
-            Log.Info("Server has paused");
+            Log.Info("Server has paused, waiting for players to connect");
         }
 
         public void ResumeServer()

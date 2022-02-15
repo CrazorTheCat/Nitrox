@@ -1,7 +1,4 @@
-﻿using NitroxModel.Logger;
-using NitroxModel.Packets;
-using NitroxModel.Server;
-using NitroxServer.Communication.NetworkingLayer;
+﻿using NitroxModel.Packets;
 using NitroxServer.Communication.Packets.Processors.Abstract;
 using NitroxServer.Serialization;
 

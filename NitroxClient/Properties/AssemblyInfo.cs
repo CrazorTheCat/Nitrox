@@ -6,11 +6,8 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Client")]
-[assembly: AssemblyDescription("")]
-[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyDescription("Interfaces with the Subnautica code to provide multiplayer support")]
 // COMMON: [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Client")]
 // COMMON: [assembly: AssemblyCopyright("")]
 // COMMON: [assembly: AssemblyTrademark("")]
 // COMMON: [assembly: AssemblyCulture("")]
@@ -36,4 +33,4 @@ using System.Runtime.InteropServices;
 // COMMON: [assembly: AssemblyVersion("X.X.X.X")]
 // COMMON: [assembly: AssemblyFileVersion("X.X.X.X")]
 
-[assembly: InternalsVisibleTo("NitroxTest")]
+[assembly: InternalsVisibleTo("Nitrox.Test")]

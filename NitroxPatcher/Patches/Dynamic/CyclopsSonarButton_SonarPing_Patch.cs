@@ -1,33 +1,33 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using NitroxClient.GameLogic;
 using NitroxClient.MonoBehaviours;
-using NitroxModel.Core;
 using NitroxModel.DataStructures;
+using NitroxModel.Helper;
 
 namespace NitroxPatcher.Patches.Dynamic
 {
-    class CyclopsSonarButton_SonarPing_Patch : NitroxPatch, IDynamicPatch
+    /// <summary>
+    /// The sonar will stay on until the player leaves the vehicle and automatically turns on when they enter again (if sonar was on at that time).
+    /// </summary>
+    public class CyclopsSonarButton_SonarPing_Patch : NitroxPatch, IDynamicPatch
     {
-
-        public static readonly Type TARGET_CLASS = typeof(CyclopsSonarButton);
-        public static readonly MethodInfo TARGET_METHOD = TARGET_CLASS.GetMethod("SonarPing", BindingFlags.NonPublic | BindingFlags.Instance);
+        public static readonly MethodInfo TARGET_METHOD = Reflect.Method((CyclopsSonarButton t) => t.SonarPing());
         public static readonly OpCode JUMP_TARGET_CODE = OpCodes.Ldsfld;
-        public static readonly FieldInfo JUMP_TARGET_FIELD = typeof(SNCameraRoot).GetField("main", BindingFlags.Public | BindingFlags.Static);
+        public static readonly FieldInfo JUMP_TARGET_FIELD = Reflect.Field(() => SNCameraRoot.main);
 
-        
+
         // Send ping to other players        
         public static void Postfix(CyclopsSonarButton __instance)
         {
             NitroxId id = NitroxEntity.GetId(__instance.subRoot.gameObject);
-            NitroxServiceLocator.LocateService<Cyclops>().BroadcastSonarPing(id);
+            Resolve<Cyclops>().BroadcastSonarPing(id);
         }
 
-       
+
         /* As the ping would be always be executed it should be restricted to players, that are in the cyclops
         * Therefore the code generated from AssembleNewCode will be injected before the ping would be send but after energy consumption
         * End result:
@@ -46,7 +46,7 @@ namespace NitroxPatcher.Patches.Dynamic
         * 	SNCameraRoot.main.SonarPing();
         * 	this.soundFX.Play();
         * }
-        */        
+        */
         public static IEnumerable<CodeInstruction> Transpiler(MethodBase original, IEnumerable<CodeInstruction> instructions, ILGenerator iLGenerator)
         {
             List<CodeInstruction> instructionList = instructions.ToList();
@@ -59,10 +59,10 @@ namespace NitroxPatcher.Patches.Dynamic
             for (int i = 0; i < instructionList.Count; i++)
             {
                 CodeInstruction instruction = instructionList[i];
-                if(instruction.opcode.Equals(JUMP_TARGET_CODE) && instruction.operand.Equals(JUMP_TARGET_FIELD))
-                {                    
+                if (instruction.opcode.Equals(JUMP_TARGET_CODE) && instruction.operand.Equals(JUMP_TARGET_FIELD))
+                {
                     Label jumpLabel = instruction.labels[0];
-                    IEnumerable<CodeInstruction> injectInstructions = AssembleNewCode(jumpLabel,toInjectJump);
+                    IEnumerable<CodeInstruction> injectInstructions = AssembleNewCode(jumpLabel, toInjectJump);
                     foreach (CodeInstruction injectInstruction in injectInstructions)
                     {
                         yield return injectInstruction;
@@ -77,16 +77,16 @@ namespace NitroxPatcher.Patches.Dynamic
                  */
                 if (instruction.opcode.Equals(OpCodes.Brtrue))
                 {
-                    if (instructionList[i - 1].opcode.Equals(OpCodes.Ldloc_1) && instructionList[i + 1].opcode.Equals(OpCodes.Ldarg_0))
+                    if (instructionList[i - 1].opcode.Equals(OpCodes.Call) && instructionList[i + 1].opcode.Equals(OpCodes.Ldarg_0))
                     {
                         instruction.operand = toInjectJump;
                     }
                 }
                 yield return instruction;
-            }           
+            }
         }
 
-        private static IEnumerable<CodeInstruction> AssembleNewCode(Label outJumpLabel,Label innerJumpLabel)
+        private static IEnumerable<CodeInstruction> AssembleNewCode(Label outJumpLabel, Label innerJumpLabel)
         {
             //Code to inject:
             /*
@@ -96,25 +96,26 @@ namespace NitroxPatcher.Patches.Dynamic
 		     * }
              * 
              */
-                List<CodeInstruction> injectInstructions = new List<CodeInstruction>();
+            List<CodeInstruction> injectInstructions = new();
 
-            CodeInstruction instruction = new CodeInstruction(OpCodes.Ldsfld);
-            instruction.operand = typeof(Player).GetField("main", BindingFlags.Public | BindingFlags.Static);
+            CodeInstruction instruction = new(OpCodes.Ldsfld);
+            instruction.operand = Reflect.Field(() => Player.main);
             instruction.labels.Add(innerJumpLabel);
             injectInstructions.Add(instruction);
 
             instruction = new CodeInstruction(OpCodes.Callvirt);
-            instruction.operand = typeof(Player).GetMethod("get_currentSub", BindingFlags.Public | BindingFlags.Instance);
+            instruction.operand = Reflect.Property((Player t) => t.currentSub).GetMethod;
             injectInstructions.Add(instruction);
 
-            instruction = new CodeInstruction(OpCodes.Ldarg_0);            
+            instruction = new CodeInstruction(OpCodes.Ldarg_0);
             injectInstructions.Add(instruction);
 
             instruction = new CodeInstruction(OpCodes.Ldfld);
-            instruction.operand = TARGET_CLASS.GetField("subRoot", BindingFlags.Public | BindingFlags.Instance);
+            instruction.operand = Reflect.Field((CyclopsSonarButton t) => t.subRoot);
             injectInstructions.Add(instruction);
 
             instruction = new CodeInstruction(OpCodes.Call);
+            // Reflect utility class does not supported getting operator-overload methods.
             instruction.operand = typeof(UnityEngine.Object).GetMethod("op_Inequality", BindingFlags.Public | BindingFlags.Static);
             injectInstructions.Add(instruction);
 
@@ -130,8 +131,7 @@ namespace NitroxPatcher.Patches.Dynamic
 
         public override void Patch(Harmony harmony)
         {
-            PatchPostfix(harmony, TARGET_METHOD);
-            PatchTranspiler(harmony, TARGET_METHOD);
+            PatchMultiple(harmony, TARGET_METHOD, postfix: true, transpiler: true);
         }
     }
 }

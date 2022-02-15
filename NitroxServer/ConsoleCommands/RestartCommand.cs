@@ -1,11 +1,10 @@
 ﻿using System.Diagnostics;
 using NitroxModel.DataStructures.GameLogic;
-using NitroxModel.Logger;
 using NitroxServer.ConsoleCommands.Abstract;
 
 namespace NitroxServer.ConsoleCommands
 {
-    internal sealed class RestartCommand : Command
+    internal class RestartCommand : Command
     {
         private readonly Server server;
 
@@ -21,12 +20,15 @@ namespace NitroxServer.ConsoleCommands
                 Log.Error("Cannot restart server while debugger is attached.");
                 return;
             }
+
             string program = Process.GetCurrentProcess().MainModule?.FileName;
             if (program == null)
             {
                 Log.Error("Failed to get location of server.");
                 return;
             }
+
+            SendMessageToAllPlayers("Server is restarting...");
 
             server.Stop();
             using Process proc = Process.Start(program);

@@ -4,7 +4,6 @@ using NitroxClient.MonoBehaviours;
 using NitroxModel.Helper;
 using NitroxModel.Packets;
 using NitroxModel_Subnautica.DataStructures;
-using NitroxModel_Subnautica.Helper;
 using UnityEngine;
 
 namespace NitroxClient.Communication.Packets.Processors
@@ -30,7 +29,7 @@ namespace NitroxClient.Communication.Packets.Processors
 
                     if (techType == TechType.SeamothElectricalDefense)
                     {
-                        float[] chargearray = (float[])seamoth.ReflectionGet("quickSlotCharge");
+                        float[] chargearray = seamoth.quickSlotCharge;
                         float charge = chargearray[packet.SlotID];
                         float slotCharge = seamoth.GetSlotCharge(packet.SlotID);
                         GameObject gameObject = global::Utils.SpawnZeroedAt(seamoth.seamothElectricalDefensePrefab, seamoth.transform, false);

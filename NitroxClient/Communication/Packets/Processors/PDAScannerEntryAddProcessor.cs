@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
+﻿using System.Collections.Generic;
 using NitroxClient.Communication.Abstract;
 using NitroxClient.Communication.Packets.Processors.Abstract;
 using NitroxModel.Packets;
 using NitroxModel_Subnautica.DataStructures;
-using NitroxModel_Subnautica.Helper;
 using UnityEngine;
 
 namespace NitroxClient.Communication.Packets.Processors
@@ -27,12 +24,9 @@ namespace NitroxClient.Communication.Packets.Processors
                 TechType techType = packet.TechType.ToUnity();
                 PDAScanner.EntryData entryData = PDAScanner.GetEntryData(techType);
 
-                PDAScanner.Entry entry;
-                if (!PDAScanner.GetPartialEntryByKey(techType, out entry))
+                if (!PDAScanner.GetPartialEntryByKey(techType, out PDAScanner.Entry entry))
                 {
-                    MethodInfo methodAdd = typeof(PDAScanner).GetMethod("Add", BindingFlags.NonPublic | BindingFlags.Static, null, new Type[] { typeof(TechType), typeof(int) }, null);
-                    entry = (PDAScanner.Entry)methodAdd.Invoke(null, new object[] { techType, packet.Unlocked });
-
+                    entry = PDAScanner.Add(techType, packet.Unlocked);
                 }
 
                 if (entry != null)
@@ -41,10 +35,8 @@ namespace NitroxClient.Communication.Packets.Processors
 
                     if (entry.unlocked >= entryData.totalFragments)
                     {
-                        List<PDAScanner.Entry> partial = (List<PDAScanner.Entry>)(typeof(PDAScanner).GetField("partial", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null));
-                        HashSet<TechType> complete = (HashSet<TechType>)(typeof(PDAScanner).GetField("complete", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null));
-                        partial.Remove(entry);
-                        complete.Add(entry.techType);
+                        PDAScanner.partial.Remove(entry);
+                        PDAScanner.complete.Add(entry.techType);
                     }
                     else
                     {

@@ -1,6 +1,5 @@
-﻿using NitroxModel.Logger;
+﻿using NitroxClient.MonoBehaviours;
 using UnityEngine;
-using NitroxClient.MonoBehaviours;
 
 namespace NitroxClient.Unity.Helper
 {

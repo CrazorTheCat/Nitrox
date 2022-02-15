@@ -1,14 +1,12 @@
-﻿using NitroxClient.Communication.Abstract;
+﻿using System.Collections;
+using NitroxClient.Communication.Abstract;
 using NitroxClient.Communication.Packets.Processors.Abstract;
 using NitroxClient.GameLogic;
-using NitroxClient.Unity.Helper;
-using NitroxModel.Helper;
-using NitroxModel.Packets;
-using System.Collections;
-using UnityEngine;
 using NitroxClient.MonoBehaviours;
+using NitroxClient.Unity.Helper;
 using NitroxModel.DataStructures.Util;
-using NitroxModel.Logger;
+using NitroxModel.Packets;
+using UnityEngine;
 
 namespace NitroxClient.Communication.Packets.Processors
 {
@@ -32,10 +30,10 @@ namespace NitroxClient.Communication.Packets.Processors
 
             Vehicle vehicle = vehicleGo.RequireComponent<Vehicle>();
             VehicleDockingBay vehicleDockingBay = vehicleDockingBayGo.RequireComponentInChildren<VehicleDockingBay>();
-            
+
             using (packetSender.Suppress<VehicleUndocking>())
             {
-                
+
                 if (packet.UndockingStart)
                 {
                     StartVehicleUndocking(packet, vehicleGo, vehicle, vehicleDockingBay);
@@ -52,9 +50,9 @@ namespace NitroxClient.Communication.Packets.Processors
             Optional<RemotePlayer> player = remotePlayerManager.Find(packet.PlayerId);
             vehicleDockingBay.subRoot.BroadcastMessage("OnLaunchBayOpening", SendMessageOptions.DontRequireReceiver);
             SkyEnvironmentChanged.Broadcast(vehicleGo, (GameObject)null);
-            
+
             if (player.HasValue)
-            { 
+            {
                 RemotePlayer playerInstance = player.Value;
                 vehicle.mainAnimator.SetBool("player_in", true);
                 playerInstance.Attach(vehicle.playerPosition.transform);
@@ -68,11 +66,11 @@ namespace NitroxClient.Communication.Packets.Processors
             }
             vehicleDockingBay.StartCoroutine(StartUndockingAnimation(vehicleDockingBay));
         }
-        
+
         public IEnumerator StartUndockingAnimation(VehicleDockingBay vehicleDockingBay)
         {
             yield return new WaitForSeconds(2.0f);
-            vehicleDockingBay.ReflectionSet("vehicle_docked_param", false);
+            vehicleDockingBay.vehicle_docked_param = false;
         }
 
         private void FinishVehicleUndocking(VehicleUndocking packet, Vehicle vehicle, VehicleDockingBay vehicleDockingBay)
@@ -81,7 +79,7 @@ namespace NitroxClient.Communication.Packets.Processors
             {
                 vehicleDockingBay.SetVehicleUndocked();
             }
-            vehicleDockingBay.ReflectionSet("_dockedVehicle", null);
+            vehicleDockingBay.dockedVehicle = null;
             vehicleDockingBay.CancelInvoke("RepairVehicle");
             vehicle.docked = false;
             Optional<RemotePlayer> player = remotePlayerManager.Find(packet.PlayerId);

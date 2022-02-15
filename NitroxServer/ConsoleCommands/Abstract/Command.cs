@@ -6,8 +6,8 @@ using NitroxModel.Core;
 using NitroxModel.DataStructures.GameLogic;
 using NitroxModel.DataStructures.Util;
 using NitroxModel.Helper;
-using NitroxModel.Logger;
 using NitroxModel.Packets;
+using NitroxServer.ConsoleCommands.Abstract.Type;
 using NitroxServer.GameLogic;
 
 namespace NitroxServer.ConsoleCommands.Abstract
@@ -16,22 +16,30 @@ namespace NitroxServer.ConsoleCommands.Abstract
     {
         private int optional, required;
 
-        public virtual IEnumerable<string> Aliases { get; } = Array.Empty<string>();
+        public virtual IEnumerable<string> Aliases { get; }
 
         public string Name { get; }
         public string Description { get; }
         public Perms RequiredPermLevel { get; }
-        public bool AllowedArgOverflow { get; }
+        public PermsFlag Flags { get; }
+        public bool AllowedArgOverflow { get; set; }
         public List<IParameter<object>> Parameters { get; }
 
-        protected Command(string name, Perms perm, string description, bool allowedArgOveflow = false)
+        protected Command(string name, Perms perms, PermsFlag flag, string description) : this(name, perms, description)
+        {
+            Flags = flag;
+        }
+
+        protected Command(string name, Perms perms, string description)
         {
             Validate.NotNull(name);
 
             Name = name;
-            RequiredPermLevel = perm;
+            Flags = PermsFlag.NONE;
+            RequiredPermLevel = perms;
+            AllowedArgOverflow = false;
+            Aliases = Array.Empty<string>();
             Parameters = new List<IParameter<object>>();
-            AllowedArgOverflow = allowedArgOveflow;
             Description = string.IsNullOrEmpty(description) ? "No description provided" : description;
         }
 
@@ -41,13 +49,13 @@ namespace NitroxServer.ConsoleCommands.Abstract
         {
             if (args.Length < required)
             {
-                SendMessage(sender, $"Error: Invalid Parameters\nUsage: {ToHelpText(true)}");
+                SendMessage(sender, $"Error: Invalid Parameters\nUsage: {ToHelpText(false, true)}");
                 return;
             }
 
             if (!AllowedArgOverflow && args.Length > optional + required)
             {
-                SendMessage(sender, $"Error: Too many Parameters\nUsage: {ToHelpText(true)}");
+                SendMessage(sender, $"Error: Too many Parameters\nUsage: {ToHelpText(false, true)}");
                 return;
             }
 
@@ -65,9 +73,14 @@ namespace NitroxServer.ConsoleCommands.Abstract
             }
         }
 
-        public string ToHelpText(bool cropText = false)
+        public bool CanExecute(Perms treshold)
         {
-            StringBuilder cmd = new StringBuilder(Name);
+            return RequiredPermLevel <= treshold;
+        }
+
+        public string ToHelpText(bool singleCommand, bool cropText = false)
+        {
+            StringBuilder cmd = new(Name);
 
             if (Aliases.Any())
             {
@@ -75,37 +88,15 @@ namespace NitroxServer.ConsoleCommands.Abstract
             }
 
             cmd.AppendFormat(" {0}", string.Join(" ", Parameters));
-            return cropText ? $"{cmd}" : $"{cmd,-32} - {Description}";
-        }
 
-        /// <summary>
-        ///     Send a message to an existing player
-        /// </summary>
-        public void SendMessageToPlayer(Optional<Player> player, string message)
-        {
-            if (player.HasValue)
+            if (singleCommand)
             {
-                player.Value.SendPacket(new ChatMessage(ChatMessage.SERVER_ID, message));
+                string parameterPreText = Parameters.Count == 0 ? "" : Environment.NewLine;
+                string parameterText = $"{parameterPreText}{string.Join("\n", Parameters.Select(p => $"{p,-47} - {p.GetDescription()}"))}";
+
+                return cropText ? $"{cmd}" : $"{cmd,-32} - {Description} {parameterText}";
             }
-        }
-
-        /// <summary>
-        ///     Send a message to an existing player and logs it in the console
-        /// </summary>
-        public void SendMessage(Optional<Player> player, string message)
-        {
-            SendMessageToPlayer(player, message);
-            Log.Info(message);
-        }
-
-        /// <summary>
-        ///     Send a message to all connected players
-        /// </summary>
-        public void SendMessageToAllPlayers(string message)
-        {
-            PlayerManager playerManager = NitroxServiceLocator.LocateService<PlayerManager>();
-            playerManager.SendPacketToAllPlayers(new ChatMessage(ChatMessage.SERVER_ID, message));
-            Log.Info(message);
+            return cropText ? $"{cmd}" : $"{cmd,-32} - {Description}";
         }
 
         protected void AddParameter<T>(T param) where T : IParameter<object>
@@ -121,6 +112,36 @@ namespace NitroxServer.ConsoleCommands.Abstract
             {
                 optional++;
             }
+        }
+
+        /// <summary>
+        /// Send a message to an existing player
+        /// </summary>
+        public static void SendMessageToPlayer(Optional<Player> player, string message)
+        {
+            if (player.HasValue)
+            {
+                player.Value.SendPacket(new ChatMessage(ChatMessage.SERVER_ID, message));
+            }
+        }
+
+        /// <summary>
+        /// Send a message to an existing player and logs it in the console
+        /// </summary>
+        public static void SendMessage(Optional<Player> player, string message)
+        {
+            SendMessageToPlayer(player, message);
+            Log.Info(message);
+        }
+
+        /// <summary>
+        /// Send a message to all connected players
+        /// </summary>
+        public static void SendMessageToAllPlayers(string message)
+        {
+            PlayerManager playerManager = NitroxServiceLocator.LocateService<PlayerManager>();
+            playerManager.SendPacketToAllPlayers(new ChatMessage(ChatMessage.SERVER_ID, message));
+            Log.Info(message);
         }
     }
 }

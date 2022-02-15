@@ -1,6 +1,6 @@
-﻿using NitroxServer.GameLogic.Unlockables;
-using System;
+﻿using System;
 using Newtonsoft.Json;
+using NitroxServer.GameLogic.Unlockables;
 using ProtoBufNet;
 
 namespace NitroxServer.GameLogic.Bases
@@ -18,12 +18,12 @@ namespace NitroxServer.GameLogic.Bases
         [JsonProperty, ProtoMember(3)]
         public StoryTimingData StoryTiming { get; set; }
 
-        public static GameData From(PDAStateData pdaState, StoryGoalData storyGoals, EventTriggerer eventTriggerer)
+        public static GameData From(PDAStateData pdaState, StoryGoalData storyGoals, ScheduleKeeper scheduleKeeper, EventTriggerer eventTriggerer)
         {
             return new GameData
             {
                 PDAState = pdaState,
-                StoryGoals = storyGoals,
+                StoryGoals = StoryGoalData.From(storyGoals, scheduleKeeper),
                 StoryTiming = StoryTimingData.From(eventTriggerer)
             };
         }

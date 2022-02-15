@@ -1,14 +1,13 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using HarmonyLib;
 using NitroxClient.MonoBehaviours;
+using NitroxModel.Helper;
 
 namespace NitroxPatcher.Patches.Persistent
 {
     class EscapePodFirstUseCinematicsController_Initialize_Patch : NitroxPatch, IPersistentPatch
     {
-        public static readonly Type TARGET_CLASS = typeof(EscapePodFirstUseCinematicsController);
-        public static readonly MethodInfo TARGET_METHOD = TARGET_CLASS.GetMethod("Initialize", BindingFlags.NonPublic | BindingFlags.Instance);
+        private static readonly MethodInfo TARGET_METHOD = Reflect.Method((EscapePodFirstUseCinematicsController t) => t.Initialize());
 
         public static bool Prefix(EscapePodFirstUseCinematicsController __instance)
         {
@@ -17,7 +16,7 @@ namespace NitroxPatcher.Patches.Persistent
 
             __instance.bottomFirstUseCinematicTarget.gameObject.SetActive(false);
             __instance.topFirstUseCinematicTarget.gameObject.SetActive(false);
-            
+
             return !Multiplayer.Active;
         }
 

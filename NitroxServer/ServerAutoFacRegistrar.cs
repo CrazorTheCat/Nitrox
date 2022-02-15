@@ -1,8 +1,8 @@
-﻿using System.Reflection;
+﻿global using NitroxModel.Logger;
+using System.Reflection;
 using Autofac;
 using NitroxModel.Core;
-using NitroxModel.Serialization;
-using NitroxServer.Communication.NetworkingLayer.LiteNetLib;
+using NitroxServer.Communication.LiteNetLib;
 using NitroxServer.Communication.Packets;
 using NitroxServer.Communication.Packets.Processors;
 using NitroxServer.Communication.Packets.Processors.Abstract;
@@ -29,7 +29,7 @@ namespace NitroxServer
 
         private static void RegisterCoreDependencies(ContainerBuilder containerBuilder)
         {
-            containerBuilder.Register(c => NitroxConfig.Deserialize<ServerConfig>()).SingleInstance();
+            containerBuilder.Register(c => ServerConfig.Load()).SingleInstance();
             containerBuilder.RegisterType<Server>().SingleInstance();
             containerBuilder.RegisterType<PlayerManager>().SingleInstance();
             containerBuilder.RegisterType<DefaultServerPacketProcessor>().InstancePerLifetimeScope();
@@ -39,7 +39,7 @@ namespace NitroxServer
             containerBuilder.RegisterType<ConsoleCommandProcessor>().SingleInstance();
 
             containerBuilder.RegisterType<LiteNetLibServer>()
-                            .As<Communication.NetworkingLayer.NitroxServer>()
+                            .As<Communication.NitroxServer>()
                             .SingleInstance();
         }
 
@@ -52,7 +52,8 @@ namespace NitroxServer
             containerBuilder.Register(c => c.Resolve<World>().VehicleManager).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().InventoryManager).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().PlayerManager).SingleInstance();
-            containerBuilder.Register(c => c.Resolve<World>().TimeKeeper).SingleInstance();
+            containerBuilder.Register(c => c.Resolve<World>().EventTriggerer).SingleInstance();
+            containerBuilder.Register(c => c.Resolve<World>().ScheduleKeeper).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().SimulationOwnershipData).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().EntityManager).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().BatchEntitySpawner).SingleInstance();

@@ -4,7 +4,6 @@ using System.Linq;
 using NitroxModel.DataStructures;
 using NitroxModel.DataStructures.GameLogic;
 using NitroxModel.DataStructures.Util;
-using NitroxModel.Logger;
 
 namespace NitroxServer.GameLogic.Entities
 {
@@ -60,8 +59,8 @@ namespace NitroxServer.GameLogic.Entities
         public IEnumerable<NitroxId> AssignGlobalRootEntities(Player player)
         {
             List<Entity> globalRootEntities = entityManager.GetGlobalRootEntities();
-            IEnumerable<Entity> entities = globalRootEntities.Where(entity => simulationOwnershipData.TryToAcquire(entity.Id, player, SimulationLockType.TRANSIENT)); 
-            foreach(Entity entity in entities)
+            IEnumerable<Entity> entities = globalRootEntities.Where(entity => simulationOwnershipData.TryToAcquire(entity.Id, player, SimulationLockType.TRANSIENT));
+            foreach (Entity entity in entities)
             {
                 yield return entity.Id;
             }

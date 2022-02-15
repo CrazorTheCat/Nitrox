@@ -8,6 +8,7 @@ using NitroxClient.MonoBehaviours;
 using NitroxClient.Unity.Helper;
 using NitroxModel.Core;
 using NitroxModel.DataStructures;
+using NitroxModel.Helper;
 using NitroxModel_Subnautica.DataStructures.GameLogic;
 using UnityEngine;
 
@@ -15,10 +16,9 @@ namespace NitroxPatcher.Patches.Dynamic
 {
     public class ToggleLights_SetLightsActive_Patch : NitroxPatch, IDynamicPatch
     {
-        public static readonly Type TARGET_CLASS = typeof(ToggleLights);
-        public static readonly MethodInfo TARGET_METHOD = TARGET_CLASS.GetMethod("SetLightsActive", BindingFlags.Public | BindingFlags.Instance);
+        private static readonly MethodInfo TARGET_METHOD = Reflect.Method((ToggleLights t) => t.SetLightsActive(default(bool)));
 
-        private static readonly HashSet<Type> syncedParents = new HashSet<Type>()
+        private static readonly HashSet<Type> syncedParents = new()
         {
             typeof(SeaMoth),
             typeof(Seaglide),
@@ -34,7 +34,7 @@ namespace NitroxPatcher.Patches.Dynamic
         }
 
         public static void Postfix(ToggleLights __instance, bool __state)
-        {            
+        {
             if (__state != __instance.lightsActive)
             {
                 // Find the right gameobject in the hierarchy to sync on:
@@ -48,7 +48,7 @@ namespace NitroxPatcher.Patches.Dynamic
                         gameObject = __instance.gameObject;
                         break;
                     }
-                    else if (__instance.GetComponentInParent(t))
+                    if (__instance.GetComponentInParent(t))
                     {
                         type = t;
                         gameObject = __instance.transform.parent.gameObject;
@@ -63,7 +63,7 @@ namespace NitroxPatcher.Patches.Dynamic
 
                 NitroxId id = NitroxEntity.GetId(gameObject);
                 // If the floodlight belongs to a seamoth, then set the lights for the model
-                if(type == typeof(SeaMoth))
+                if (type == typeof(SeaMoth))
                 {
                     NitroxServiceLocator.LocateService<Vehicles>().GetVehicles<SeamothModel>(id).LightOn = __instance.lightsActive;
                 }
@@ -73,7 +73,7 @@ namespace NitroxPatcher.Patches.Dynamic
 
         public override void Patch(Harmony harmony)
         {
-            PatchMultiple(harmony, TARGET_METHOD, true, true, false, false);
+            PatchMultiple(harmony, TARGET_METHOD, prefix:true, postfix:true);
         }
 
         public class LightToggleContainer

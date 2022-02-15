@@ -2,9 +2,6 @@
 using NitroxClient.Communication.Abstract;
 using NitroxClient.MonoBehaviours;
 using NitroxModel.DataStructures;
-using NitroxModel.DataStructures.Util;
-using NitroxModel.Helper;
-using NitroxModel.Logger;
 using NitroxModel_Subnautica.DataStructures.GameLogic;
 using NitroxModel_Subnautica.Packets;
 using UnityEngine;
@@ -26,12 +23,12 @@ namespace NitroxClient.GameLogic
 
         public void SpawnedArm(Exosuit exosuit)
         {
-            NitroxId id = NitroxEntity.GetId(exosuit.gameObject);            
+            NitroxId id = NitroxEntity.GetId(exosuit.gameObject);
             ExosuitModel exosuitModel = vehicles.GetVehicles<ExosuitModel>(id);
-            
-            IExosuitArm rightArm = (IExosuitArm)exosuit.ReflectionGet("rightArm");            
-            IExosuitArm leftArm = (IExosuitArm)exosuit.ReflectionGet("leftArm");  
-            
+
+            IExosuitArm rightArm = exosuit.rightArm;
+            IExosuitArm leftArm = exosuit.leftArm;
+
             try
             {
                 GameObject rightArmGameObject = rightArm.GetGameObject();
@@ -46,7 +43,7 @@ namespace NitroxClient.GameLogic
             }
 
             Log.Debug("Spawn exosuit arms for: " + id);
-        }                
+        }
 
         public void BroadcastClawUse(ExosuitClawArm clawArm, float cooldown)
         {
@@ -76,16 +73,16 @@ namespace NitroxClient.GameLogic
             {
                 clawArm.animator.SetTrigger("use_tool");
             }
-            else if(armAction == ExosuitArmAction.ALT_HIT)
+            else if (armAction == ExosuitArmAction.ALT_HIT)
             {
                 clawArm.animator.SetTrigger("bash");
                 clawArm.fxControl.Play(0);
             }
-        }        
+        }
 
         public void UseDrill(ExosuitDrillArm drillArm, ExosuitArmAction armAction)
         {
-            if(armAction == ExosuitArmAction.START_USE_TOOL)
+            if (armAction == ExosuitArmAction.START_USE_TOOL)
             {
                 drillArm.animator.SetBool("use_tool", true);
                 drillArm.loop.Play();
@@ -93,17 +90,17 @@ namespace NitroxClient.GameLogic
             else if (armAction == ExosuitArmAction.END_USE_TOOL)
             {
                 drillArm.animator.SetBool("use_tool", false);
-                drillArm.ReflectionCall("StopEffects");
+                drillArm.StopEffects();
             }
             else
             {
                 Log.Error("Drill arm got an arm action he should not get: " + armAction);
             }
-        }       
+        }
 
         public void BroadcastArmAction(TechType techType, IExosuitArm exosuitArm, ExosuitArmAction armAction, Vector3? opVector, Quaternion? opRotation)
         {
-            NitroxId id = NitroxEntity.GetId(exosuitArm.GetGameObject());            
+            NitroxId id = NitroxEntity.GetId(exosuitArm.GetGameObject());
             ExosuitArmActionPacket packet = new ExosuitArmActionPacket(techType, id, armAction, opVector, opRotation);
             packetSender.Send(packet);
         }
@@ -120,7 +117,7 @@ namespace NitroxClient.GameLogic
             if (armAction == ExosuitArmAction.END_USE_TOOL)
             {
                 grapplingArm.animator.SetBool("use_tool", false);
-                grapplingArm.ReflectionCall("ResetHook");                
+                grapplingArm.ResetHook();
             }
             else if (armAction == ExosuitArmAction.START_USE_TOOL)
             {
@@ -130,23 +127,23 @@ namespace NitroxClient.GameLogic
                     grapplingArm.rope.LaunchHook(35f);
                 }
 
-                GrapplingHook hook = (GrapplingHook)grapplingArm.ReflectionGet("hook");
+                GrapplingHook hook = grapplingArm.hook;
 
                 hook.transform.parent = null;
                 hook.transform.position = grapplingArm.front.transform.position;
                 hook.SetFlying(true);
                 Exosuit componentInParent = grapplingArm.GetComponentInParent<Exosuit>();
 
-                
+
                 if (!opHitVector.HasValue)
                 {
                     Log.Error("No vector given that contains the hook direction");
                     return;
                 }
-                
+
                 hook.rb.velocity = opHitVector.Value;
-                global::Utils.PlayFMODAsset(grapplingArm.shootSound, grapplingArm.front, 15f);
-                grapplingArm.ReflectionSet("grapplingStartPos", componentInParent.transform.position);
+                Utils.PlayFMODAsset(grapplingArm.shootSound, grapplingArm.front, 15f);
+                grapplingArm.grapplingStartPos = componentInParent.transform.position;
             }
             else
             {
@@ -155,10 +152,10 @@ namespace NitroxClient.GameLogic
         }
 
         public void UseTorpedo(ExosuitTorpedoArm torpedoArm, ExosuitArmAction armAction, Vector3? opVector, Quaternion? opRotation)
-        {            
+        {
             if (armAction == ExosuitArmAction.START_USE_TOOL || armAction == ExosuitArmAction.ALT_HIT)
             {
-                if(!opVector.HasValue || !opRotation.HasValue)
+                if (!opVector.HasValue || !opRotation.HasValue)
                 {
                     Log.Error("Torpedo arm action shoot: no vector or rotation present");
                     return;
@@ -174,7 +171,7 @@ namespace NitroxClient.GameLogic
                 {
                     silo = torpedoArm.siloSecond;
                 }
-                ItemsContainer container = (ItemsContainer)torpedoArm.ReflectionGet("container");
+                ItemsContainer container = torpedoArm.container;
                 Exosuit exosuit = torpedoArm.GetComponentInParent<Exosuit>();
                 TorpedoType[] torpedoTypes = exosuit.torpedoTypes;
 

@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace NitroxClient.MonoBehaviours
 {
-    public class MultiplayerSeaMoth : MultiplayerVehicleControl<Vehicle>
+    public class MultiplayerSeaMoth : MultiplayerVehicleControl
     {
         private bool lastThrottle;
         private SeaMoth seamoth;
@@ -17,16 +17,20 @@ namespace NitroxClient.MonoBehaviours
 
         protected override void Awake()
         {
-            SteeringControl = seamoth = GetComponent<SeaMoth>();
+            seamoth = GetComponent<SeaMoth>();
+            WheelYawSetter = value => seamoth.steeringWheelYaw = value;
+            WheelPitchSetter = value => seamoth.steeringWheelPitch = value;
+            
             SetUpSound();
             base.Awake();
         }
 
         protected void Update()
         {
+            // Clamp volume between 0 and 1 (nothing or max). Going below 0 turns up volume to max.
             float distance = Vector3.Distance(Player.main.transform.position, transform.position);
-            rpmSound.GetEventInstance().setVolume(1 - distance / radiusRpmSound);
-            revSound.GetEventInstance().setVolume(1 - distance / radiusRevSound);
+            rpmSound.GetEventInstance().setVolume(Mathf.Clamp01(1 - distance / radiusRpmSound));
+            revSound.GetEventInstance().setVolume(Mathf.Clamp01(1 - distance / radiusRevSound));
 
             if (lastThrottle)
             {
@@ -34,7 +38,7 @@ namespace NitroxClient.MonoBehaviours
             }
         }
 
-        internal override void Exit()
+        public override void Exit()
         {
             seamoth.bubbles.Stop();
             base.Exit();

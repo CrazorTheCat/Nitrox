@@ -3,11 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using NitroxClient.Communication.Abstract;
 using NitroxClient.GameLogic.Bases;
-using NitroxClient.GameLogic.Bases.Spawning;
+using NitroxClient.GameLogic.Bases.Spawning.BasePiece;
 using NitroxClient.GameLogic.InitialSync.Base;
 using NitroxClient.MonoBehaviours;
 using NitroxModel.DataStructures.GameLogic;
-using NitroxModel.Logger;
 using NitroxModel.Packets;
 using UnityEngine;
 
@@ -20,7 +19,7 @@ namespace NitroxClient.GameLogic.InitialSync
         private readonly BasePieceSpawnPrioritizer basePieceSpawnPrioritizer;
 
         private bool completed;
-        
+
         public BuildingInitialSyncProcessor(IPacketSender packetSender, BuildThrottlingQueue buildEventQueue, BasePieceSpawnPrioritizer basePieceSpawnPrioritizer)
         {
             this.packetSender = packetSender;
@@ -43,7 +42,7 @@ namespace NitroxClient.GameLogic.InitialSync
             }
             else
             {
-                List<BasePiece> prioritizedBasePieces = basePieceSpawnPrioritizer.OrderBasePiecesByPriority(basePieces);
+                IEnumerable<BasePiece> prioritizedBasePieces = basePieceSpawnPrioritizer.OrderBasePiecesByPriority(basePieces);
                 QueueUpPieces(prioritizedBasePieces);
                 ThrottledBuilder.main.QueueDrained += FinishedCompletedBuildings;
             }
@@ -51,7 +50,7 @@ namespace NitroxClient.GameLogic.InitialSync
             yield return new WaitUntil(() => completed);
         }
 
-        private void QueueUpPieces(List<BasePiece> basePieces)
+        private void QueueUpPieces(IEnumerable<BasePiece> basePieces)
         {
             using (packetSender.Suppress<ConstructionAmountChanged>())
             using (packetSender.Suppress<ConstructionCompleted>())

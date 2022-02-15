@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿global using NitroxModel.Logger;
+using System.Reflection;
 using Autofac;
 using Autofac.Core;
 using NitroxClient.Communication;
@@ -9,7 +10,7 @@ using NitroxClient.Communication.Packets.Processors.Abstract;
 using NitroxClient.Debuggers;
 using NitroxClient.GameLogic;
 using NitroxClient.GameLogic.Bases;
-using NitroxClient.GameLogic.Bases.Spawning;
+using NitroxClient.GameLogic.Bases.Spawning.BasePiece;
 using NitroxClient.GameLogic.ChatUI;
 using NitroxClient.GameLogic.FMOD;
 using NitroxClient.GameLogic.HUD;
@@ -17,6 +18,7 @@ using NitroxClient.GameLogic.InitialSync.Base;
 using NitroxClient.GameLogic.PlayerModel;
 using NitroxClient.GameLogic.PlayerModel.Abstract;
 using NitroxClient.GameLogic.PlayerPreferences;
+using NitroxClient.GameLogic.Settings;
 using NitroxClient.Helpers;
 using NitroxClient.Map;
 using NitroxModel.Core;
@@ -125,6 +127,8 @@ namespace NitroxClient
             containerBuilder.RegisterType<Fires>().InstancePerLifetimeScope();
             containerBuilder.RegisterType<FMODSystem>().InstancePerLifetimeScope();
             containerBuilder.RegisterType<LiveMixinManager>().InstancePerLifetimeScope();
+            containerBuilder.RegisterType<NitroxSettingsManager>().InstancePerLifetimeScope();
+            containerBuilder.RegisterType<ThrottledPacketSender>().InstancePerLifetimeScope();
         }
 
         private void RegisterPacketProcessors(ContainerBuilder containerBuilder)

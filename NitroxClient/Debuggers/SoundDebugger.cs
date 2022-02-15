@@ -4,7 +4,6 @@ using FMOD.Studio;
 using FMODUnity;
 using NitroxClient.GameLogic.FMOD;
 using NitroxClient.Unity.Helper;
-using NitroxModel.Logger;
 using UnityEngine;
 #pragma warning disable 618
 
@@ -25,7 +24,7 @@ namespace NitroxClient.Debuggers
 
         public SoundDebugger(FMODSystem fmodSystem) : base(700, null, KeyCode.S, true, false, true, GUISkinCreationOptions.DERIVEDCOPY)
         {
-            assetList = fmodSystem.GetSoundDataList();
+            assetList = fmodSystem.SoundDataList;
             ActiveTab = AddTab("Sounds", RenderTabAllSounds);
         }
 

@@ -1,13 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Reflection;
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using NitroxClient.Communication.Abstract;
 using NitroxClient.GameLogic.InitialSync.Base;
 using NitroxModel.DataStructures.GameLogic;
-using NitroxModel.Logger;
 using NitroxModel.Packets;
-using NitroxModel.Helper;
-using NitroxModel_Subnautica.Helper;
-using System.Collections;
 using NitroxModel_Subnautica.DataStructures;
 
 namespace NitroxClient.GameLogic.InitialSync
@@ -24,22 +21,26 @@ namespace NitroxClient.GameLogic.InitialSync
         public override IEnumerator Process(InitialPlayerSync packet, WaitScreen.ManualWaitItem waitScreenItem)
         {
             SetEncyclopediaEntry(packet.PDAData.EncyclopediaEntries);
-            waitScreenItem.SetProgress(0.2f);
+            waitScreenItem.SetProgress(0.17f);
             yield return null;
 
             SetPDAEntryComplete(packet.PDAData.UnlockedTechTypes);
-            waitScreenItem.SetProgress(0.4f);
+            waitScreenItem.SetProgress(0.33f);
             yield return null;
 
             SetPDAEntryPartial(packet.PDAData.PartiallyUnlockedTechTypes);
-            waitScreenItem.SetProgress(0.6f);
+            waitScreenItem.SetProgress(0.5f);
             yield return null;
 
             SetKnownTech(packet.PDAData.KnownTechTypes);
-            waitScreenItem.SetProgress(0.8f);
+            waitScreenItem.SetProgress(0.67f);
             yield return null;
 
             SetPDALog(packet.PDAData.PDALogEntries);
+            waitScreenItem.SetProgress(0.83f);
+            yield return null;
+
+            SetCachedProgress(packet.PDAData.CachedProgress);
             waitScreenItem.SetProgress(1f);
             yield return null;
         }
@@ -59,23 +60,29 @@ namespace NitroxClient.GameLogic.InitialSync
 
         private void SetPDAEntryComplete(List<NitroxTechType> pdaEntryComplete)
         {
-            HashSet<TechType> complete = (HashSet<TechType>)(typeof(PDAScanner).GetField("complete", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null));
+            HashSet<TechType> complete = PDAScanner.complete;
 
             foreach (NitroxTechType item in pdaEntryComplete)
             {
                 complete.Add(item.ToUnity());
             }
-
+            
             Log.Info($"PDAEntryComplete: New added: {pdaEntryComplete.Count}, Total: {complete.Count}");
 
         }
 
         private void SetPDAEntryPartial(List<PDAEntry> entries)
         {
-            List<PDAScanner.Entry> partial = (List<PDAScanner.Entry>)(typeof(PDAScanner).GetField("partial", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null));
+            List<PDAScanner.Entry> partial = PDAScanner.partial;
 
             foreach (PDAEntry entry in entries)
             {
+                // If, for some reason this happens, at least the client will be able to ignore it, in the other case, he wouldn't be able to connect
+                if (entry.Progress == 0f)
+                {
+                    Log.Warn("A partial entry progress was set to 0 and was removed");
+                    continue;
+                }
                 partial.Add(new PDAScanner.Entry { progress = entry.Progress, techType = entry.TechType.ToUnity(), unlocked = entry.Unlocked });
             }
 
@@ -90,7 +97,7 @@ namespace NitroxClient.GameLogic.InitialSync
             {
                 foreach (NitroxTechType techType in techTypes)
                 {
-                    HashSet<TechType> complete = (HashSet<TechType>)(typeof(PDAScanner).GetField("complete", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null));
+                    HashSet<TechType> complete = PDAScanner.complete;
                     KnownTech.Add(techType.ToUnity(), false);
                 }
             }
@@ -102,26 +109,33 @@ namespace NitroxClient.GameLogic.InitialSync
 
             using (packetSender.Suppress<PDALogEntryAdd>())
             {
-                Dictionary<string, PDALog.Entry> entries = (Dictionary<string, PDALog.Entry>)(typeof(PDALog).GetField("entries", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null));
+                Dictionary<string, PDALog.Entry> entries = PDALog.entries;
 
                 foreach (PDALogEntry logEntry in logEntries)
                 {
-                    if (!entries.ContainsKey(logEntry.Key))
+                    if (logEntry.Key != null && !entries.ContainsKey(logEntry.Key))
                     {
-                        PDALog.EntryData entryData;
-                        PDALog.GetEntryData(logEntry.Key, out entryData);
-                        PDALog.Entry entry = new PDALog.Entry();
-                        entry.data = entryData;
-                        entry.timestamp = logEntry.Timestamp;
-                        entries.Add(entryData.key, entry);
-
-                        if (entryData.key == "Story_AuroraWarning4")
+                        if (PDALog.GetEntryData(logEntry.Key, out PDALog.EntryData entryData))
                         {
-                            CrashedShipExploder.main.ReflectionCall("SwapModels", false, false, new object[] { true });
+                            PDALog.Entry entry = new PDALog.Entry();
+                            entry.data = entryData;
+                            entry.timestamp = logEntry.Timestamp;
+                            entries.Add(entryData.key, entry);
+
+                            if (entryData.key == "Story_AuroraWarning4")
+                            {
+                                CrashedShipExploder.main.SwapModels(true);
+                            }
                         }
                     }
                 }
             }
+        }
+
+        private void SetCachedProgress(List<PDAProgressEntry> pdaCachedEntries)
+        {
+            Log.Info($"Received initial sync packet with {pdaCachedEntries.Count} cached progress entries");
+            PDAManagerEntry.CachedEntries = pdaCachedEntries.ToDictionary(entry => entry.TechType);
         }
     }
 }

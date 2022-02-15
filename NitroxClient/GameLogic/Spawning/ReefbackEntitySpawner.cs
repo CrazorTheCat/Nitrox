@@ -26,9 +26,9 @@ namespace NitroxClient.GameLogic.Spawning
             {
                 return Optional.Empty;
             }
-            
+
             life.initialized = true;
-            life.ReflectionCall("SpawnPlants");
+            life.SpawnPlants();
             foreach (Entity childEntity in entity.ChildEntities)
             {
                 Optional<GameObject> child = defaultSpawner.Spawn(childEntity, reefback, cellRoot);

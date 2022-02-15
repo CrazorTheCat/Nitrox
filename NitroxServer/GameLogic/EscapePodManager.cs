@@ -1,10 +1,9 @@
-﻿using NitroxModel.DataStructures;
-using NitroxModel.DataStructures.GameLogic;
-using NitroxModel.DataStructures.Util;
-using NitroxServer.Serialization;
-using NitroxModel.Core;
+﻿using System;
 using System.Collections.Generic;
-using System;
+using NitroxModel.DataStructures;
+using NitroxModel.DataStructures.GameLogic;
+using NitroxModel.DataStructures.Unity;
+using NitroxModel.DataStructures.Util;
 
 namespace NitroxServer.GameLogic
 {
@@ -12,7 +11,7 @@ namespace NitroxServer.GameLogic
     {
         public const int ESCAPE_POD_X_OFFSET = 40;
 
-        public ThreadSafeCollection<EscapePodModel> EscapePods { get; }
+        public ThreadSafeList<EscapePodModel> EscapePods { get; }
         private readonly ThreadSafeDictionary<ushort, EscapePodModel> escapePodsByPlayerId = new ThreadSafeDictionary<ushort, EscapePodModel>();
         private EscapePodModel podForNextPlayer;
         private readonly string seed;
@@ -21,7 +20,7 @@ namespace NitroxServer.GameLogic
 
         public EscapePodManager(List<EscapePodModel> escapePods, RandomStartGenerator randomStart, string seed)
         {
-            EscapePods = new ThreadSafeCollection<EscapePodModel>(escapePods);
+            EscapePods = new ThreadSafeList<EscapePodModel>(escapePods);
 
             this.seed = seed;
             this.randomStart = randomStart;
@@ -67,7 +66,7 @@ namespace NitroxServer.GameLogic
             EscapePodModel escapePod = EscapePods.Find(ep => ep.RadioId == id);
             escapePod.RadioDamaged = false;
         }
-        
+
         private EscapePodModel CreateNewEscapePod()
         {
             EscapePodModel escapePod = new EscapePodModel();

@@ -1,19 +1,12 @@
 ﻿using System.Reflection;
-
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("SubServer")]
-[assembly: AssemblyDescription("")]
-[assembly: AssemblyConfiguration("")]
-// COMMON: [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("SubServer")]
-// COMMON: [assembly: AssemblyCopyright("")]
-// COMMON: [assembly: AssemblyTrademark("")]
-// COMMON: [assembly: AssemblyCulture("")]
+[assembly: AssemblyDescription("Shared code for Nitrox server projects")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
 // to COM components.  If you need to access a type in this assembly from
@@ -35,3 +28,5 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 // COMMON: [assembly: AssemblyVersion("X.X.X.X")]
 // COMMON: [assembly: AssemblyFileVersion("X.X.X.X")]
+
+[assembly: InternalsVisibleTo("Nitrox.Test")]

@@ -1,21 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
+using NitroxModel.Helper;
 
 namespace NitroxPatcher.Patches.Dynamic
 {
     public class IngameMenu_OnSelect_Patch : NitroxPatch, IDynamicPatch
     {
-        public static readonly Type TARGET_CLASS = typeof(IngameMenu);
-        public static readonly MethodInfo TARGET_METHOD = TARGET_CLASS.GetMethod("OnSelect");
-        public static readonly MethodInfo GAMEMODEUTILS_ISPERMADEATH_METHOD = typeof(GameModeUtils).GetMethod("IsPermadeath", BindingFlags.Public | BindingFlags.Static);
+        private static readonly MethodInfo TARGET_METHOD = Reflect.Method((IngameMenu t) => t.OnSelect(default(bool)));
+        private static readonly MethodInfo IS_PERMA_DEATH_METHOD = Reflect.Method(() => GameModeUtils.IsPermadeath());
 
         public static void Postfix()
         {
             IngameMenu.main.saveButton.gameObject.SetActive(false);
             IngameMenu.main.quitToMainMenuButton.interactable = true;
+
+#if DEBUG
+            IngameMenu.main.ActivateDeveloperMode(); // Activating it here to ensure IngameMenu is ready for it
+#endif
         }
 
         public static IEnumerable<CodeInstruction> Transpiler(MethodBase original, IEnumerable<CodeInstruction> instructions)
@@ -38,14 +41,14 @@ namespace NitroxPatcher.Patches.Dynamic
              */
             foreach (CodeInstruction instruction in instructions)
             {
-                if(GAMEMODEUTILS_ISPERMADEATH_METHOD.Equals(instruction.operand))
+                if (IS_PERMA_DEATH_METHOD.Equals(instruction.operand))
                 {
                     yield return new CodeInstruction(OpCodes.Ret);
                     break;
                 }
 
                 yield return instruction;
-            } 
+            }
         }
 
         public override void Patch(Harmony harmony)

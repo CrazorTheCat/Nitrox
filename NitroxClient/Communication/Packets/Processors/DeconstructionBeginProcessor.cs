@@ -2,7 +2,6 @@
 using NitroxClient.Communication.Packets.Processors.Abstract;
 using NitroxClient.GameLogic.Helper;
 using NitroxClient.MonoBehaviours;
-using NitroxModel.Logger;
 using NitroxModel.Packets;
 using UnityEngine;
 using static NitroxClient.GameLogic.Helper.TransientLocalObjectManager;
@@ -23,7 +22,7 @@ namespace NitroxClient.Communication.Packets.Processors
             Log.Info("Received deconstruction packet for id: " + packet.Id);
 
             GameObject deconstructing = NitroxEntity.RequireObjectFrom(packet.Id);
-            
+
             Constructable constructable = deconstructing.GetComponent<Constructable>();
             BaseDeconstructable baseDeconstructable = deconstructing.GetComponent<BaseDeconstructable>();
 

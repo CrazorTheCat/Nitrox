@@ -6,16 +6,23 @@ using NitroxModel.Server;
 namespace NitroxServer.Serialization
 {
     [PropertyDescription("Server settings can be changed here")]
-    public class ServerConfig : IProperties
+    public class ServerConfig : NitroxConfig<ServerConfig>
     {
         private int maxConnectionsSetting = 100;
 
-        private int portSetting = 11000;
+        private int initialSyncTimeoutSetting = 300000;
+
+        [PropertyDescription("Set to true to Cache entities for the whole map on next run. \nWARNING! Will make server load take longer on the cache run but players will gain a performance boost when entering new areas.")]
+        public bool CreateFullEntityCache = false;
+
+        private int portSetting = ServerList.DEFAULT_PORT;
 
         private int saveIntervalSetting = 120000;
 
+        private string postSaveCommandPath = string.Empty;
+
         private string saveNameSetting = "world";
-        public string FileName => "server.cfg";
+        public override string FileName => "server.cfg";
 
         [PropertyDescription("Leave blank for a random spawn position")]
         public string Seed { get; set; }
@@ -23,12 +30,7 @@ namespace NitroxServer.Serialization
         public int ServerPort
         {
             get => portSetting;
-
-            set
-            {
-                Validate.IsTrue(value > 1024, "Server Port must be greater than 1024");
-                portSetting = value;
-            }
+            set => portSetting = value;
         }
 
         [PropertyDescription("Measured in milliseconds")]
@@ -43,6 +45,13 @@ namespace NitroxServer.Serialization
             }
         }
 
+        [PropertyDescription("Command to run following a successful world save (e.g. .exe, .bat, or PowerShell script). ")]
+        public string PostSaveCommandPath
+        {
+            get => postSaveCommandPath;
+            set => postSaveCommandPath = value?.Trim('"').Trim();
+        }
+
         public int MaxConnections
         {
             get => maxConnectionsSetting;
@@ -51,6 +60,17 @@ namespace NitroxServer.Serialization
             {
                 Validate.IsTrue(value > 0, "MaxConnections must be greater than 0");
                 maxConnectionsSetting = value;
+            }
+        }
+
+        public int InitialSyncTimeout
+        {
+            get => initialSyncTimeoutSetting;
+
+            set
+            {
+                Validate.IsTrue(value > 30000, "InitialSyncTimeout must be greater than 30 seconds");
+                initialSyncTimeoutSetting = value;
             }
         }
 
@@ -77,7 +97,10 @@ namespace NitroxServer.Serialization
         public ServerGameMode GameMode { get; set; } = ServerGameMode.SURVIVAL;
 
         [PropertyDescription("Possible values:", typeof(ServerSerializerMode))]
-        public ServerSerializerMode SerializerMode { get; set; } = ServerSerializerMode.PROTOBUF;
+        public ServerSerializerMode SerializerMode { get; set; } = ServerSerializerMode.JSON;
+
+        [PropertyDescription("Possible values:", typeof(Perms))]
+        public Perms DefaultPlayerPerm { get; set; } = Perms.PLAYER;
 
         [PropertyDescription("\nDefault player stats below here")]
         public float DefaultOxygenValue { get; set; } = 45;
@@ -92,6 +115,15 @@ namespace NitroxServer.Serialization
 
         public bool IsHardcore => GameMode == ServerGameMode.HARDCORE;
         public bool IsPasswordRequired => ServerPassword != string.Empty;
-        public PlayerStatsData DefaultPlayerStats => new PlayerStatsData(DefaultOxygenValue, DefaultMaxOxygenValue, DefaultHealthValue, DefaultHungerValue, DefaultThirstValue, DefaultInfectionValue);
+        public PlayerStatsData DefaultPlayerStats => new(DefaultOxygenValue, DefaultMaxOxygenValue, DefaultHealthValue, DefaultHungerValue, DefaultThirstValue, DefaultInfectionValue);
+        [PropertyDescription("If set to true, the server will try to open port on your router via UPnP")]
+        public bool AutoPortForward { get; set; } = true;
+
+        public static ServerConfig Load()
+        {
+            ServerConfig config = new();
+            config.Update();
+            return config;
+        }
     }
 }

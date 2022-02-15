@@ -1,16 +1,14 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using HarmonyLib;
 using NitroxClient.GameLogic;
 using NitroxModel.Core;
-using NitroxModel.Logger;
+using NitroxModel.Helper;
 
 namespace NitroxPatcher.Patches.Dynamic
 {
     public class ExosuitClawArm_OnPickup_Patch : NitroxPatch, IDynamicPatch
     {
-        public static readonly Type TARGET_CLASS = typeof(ExosuitClawArm);
-        public static readonly MethodInfo TARGET_METHOD = TARGET_CLASS.GetMethod("OnPickup");
+        public static readonly MethodInfo TARGET_METHOD = Reflect.Method((ExosuitClawArm t) => t.OnPickup());
 
         public static bool Prefix(ExosuitClawArm __instance)
         {
@@ -22,7 +20,8 @@ namespace NitroxPatcher.Patches.Dynamic
                 if (pickupable != null && pickupable.isPickupable && componentInParent.storageContainer.container.HasRoomFor(pickupable))
                 {
                     NitroxServiceLocator.LocateService<Item>().PickedUp(pickupable.gameObject, pickupable.GetTechType());
-                } else if(component != null)
+                }
+                else if (component != null)
                 {
                     Log.Debug("Delete Pickprefab for exosuit claw arm");
                     NitroxServiceLocator.LocateService<Item>().PickedUp(component.gameObject, component.pickTech);

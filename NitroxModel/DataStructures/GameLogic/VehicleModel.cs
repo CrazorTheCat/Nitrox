@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using NitroxModel.DataStructures.Unity;
 using NitroxModel.DataStructures.Util;
 using ProtoBufNet;
 
@@ -22,7 +23,7 @@ namespace NitroxModel.DataStructures.GameLogic
         public NitroxQuaternion Rotation { get; set; }
 
         [ProtoMember(5)]
-        public ThreadSafeCollection<InteractiveChildObjectIdentifier> InteractiveChildIdentifiers { get; }
+        public ThreadSafeList<InteractiveChildObjectIdentifier> InteractiveChildIdentifiers { get; }
 
         [ProtoMember(6)]
         public Optional<NitroxId> DockingBayId { get; set; }
@@ -39,7 +40,7 @@ namespace NitroxModel.DataStructures.GameLogic
         protected VehicleModel()
         {
             // Constructor for serialization. Has to be "protected" for json serialization.
-            InteractiveChildIdentifiers = new ThreadSafeCollection<InteractiveChildObjectIdentifier>();
+            InteractiveChildIdentifiers = new ThreadSafeList<InteractiveChildObjectIdentifier>();
             DockingBayId = Optional.Empty;
             Health = 200;
         }
@@ -50,7 +51,7 @@ namespace NitroxModel.DataStructures.GameLogic
             Id = id;
             Position = position;
             Rotation = rotation;
-            InteractiveChildIdentifiers = new ThreadSafeCollection<InteractiveChildObjectIdentifier>(interactiveChildIdentifiers);
+            InteractiveChildIdentifiers = new ThreadSafeList<InteractiveChildObjectIdentifier>(interactiveChildIdentifiers);
             DockingBayId = dockingBayId;
             Name = name;
             HSB = hsb;

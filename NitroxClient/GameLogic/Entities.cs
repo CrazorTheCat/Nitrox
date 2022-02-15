@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NitroxClient.Communication.Abstract;
 using NitroxClient.GameLogic.Spawning;
 using NitroxClient.MonoBehaviours;
@@ -7,7 +7,6 @@ using NitroxModel.DataStructures.GameLogic;
 using NitroxModel.DataStructures.GameLogic.Entities.Metadata;
 using NitroxModel.DataStructures.Util;
 using NitroxModel.Helper;
-using NitroxModel.Logger;
 using NitroxModel.Packets;
 using NitroxModel_Subnautica.DataStructures;
 using UnityEngine;
@@ -30,7 +29,7 @@ namespace NitroxClient.GameLogic
 
             if (NitroxEnvironment.IsNormal) //Testing would fail because it's trying to access runtime UWE resources.
             {
-                batchCellsById = (Dictionary<Int3, BatchCells>)LargeWorldStreamer.main.cellManager.ReflectionGet("batch2cells");
+                batchCellsById = LargeWorldStreamer.main.cellManager.batch2cells;
             }
             else
             {
@@ -85,7 +84,7 @@ namespace NitroxClient.GameLogic
                         Spawn(entity, parent);
                         SpawnAnyPendingChildren(entity);
                     }
-                    catch(OptionalEmptyException<GameObject> e)
+                    catch (OptionalEmptyException<GameObject> e)
                     {
                         Log.Error($"Failed to spawn Entity {entity.Id}, a {entity.TechType}: {e.Message}");
                     }
@@ -105,13 +104,7 @@ namespace NitroxClient.GameLogic
                 batchCells = LargeWorldStreamer.main.cellManager.InitializeBatchCells(batchId);
             }
 
-            entityCell = batchCells.Get(cellId, entity.AbsoluteEntityCell.Level);
-
-            if (entityCell == null)
-            {
-                entityCell = batchCells.Add(cellId, entity.AbsoluteEntityCell.Level);
-                entityCell.Initialize();
-            }
+            entityCell = batchCells.EnsureCell(cellId, entity.AbsoluteEntityCell.Level);
 
             entityCell.EnsureRoot();
 
@@ -160,7 +153,7 @@ namespace NitroxClient.GameLogic
 
             if (!opGameObject.HasValue)
             {
-#if DEBUG
+#if DEBUG && ENTITY_LOG
                 Log.Error($"Entity was already spawned but not found(is it in another chunk?) NitroxId: {entity.Id} TechType: {entity.TechType} ClassId: {entity.ClassId} Transform: {entity.Transform}");
 #endif
                 return;

@@ -2,8 +2,8 @@
 using System.Linq;
 using NitroxModel.Core;
 using NitroxModel.DataStructures.GameLogic;
-using NitroxModel.Logger;
 using NitroxServer.ConsoleCommands.Abstract;
+using NitroxServer.ConsoleCommands.Abstract.Type;
 
 namespace NitroxServer.ConsoleCommands
 {
@@ -11,34 +11,49 @@ namespace NitroxServer.ConsoleCommands
     {
         public override IEnumerable<string> Aliases { get; } = new[] { "?" };
 
-        public HelpCommand() : base("help", Perms.PLAYER, "Displays this", true)
+        public HelpCommand() : base("help", Perms.PLAYER, "Displays this")
         {
+            AddParameter(new TypeString("command", false, "Command to see help information for"));
         }
 
         protected override void Execute(CallArgs args)
         {
-            if (args.Sender.HasValue)
+            List<string> cmdsText;
+
+            if (args.IsConsole)
             {
-                List<string> cmdsText = GetHelpText(args.Sender.Value.Permissions, true);
-                cmdsText.ForEach(cmdText => SendMessageToPlayer(args.Sender, cmdText));
-            }
-            else
-            {
-                List<string> cmdsText = GetHelpText(Perms.CONSOLE, false);
+                cmdsText = GetHelpText(Perms.CONSOLE, false, args.IsValid(0) ? args.Get<string>(0) : null);
+
                 foreach (string cmdText in cmdsText)
                 {
                     Log.Info(cmdText);
                 }
             }
+            else
+            {
+                cmdsText = GetHelpText(args.Sender.Value.Permissions, true, args.IsValid(0) ? args.Get<string>(0) : null);
+
+                foreach (string cmdText in cmdsText)
+                {
+                    SendMessageToPlayer(args.Sender, cmdText);
+                }
+            }
         }
 
-        private List<string> GetHelpText(Perms permThreshold, bool cropText)
+        private List<string> GetHelpText(Perms permThreshold, bool cropText, string singleCommand)
         {
             //Runtime query to avoid circular dependencies
             IEnumerable<Command> commands = NitroxServiceLocator.LocateService<IEnumerable<Command>>();
-            return new List<string>(commands.Where(cmd => cmd.RequiredPermLevel <= permThreshold)
-                                            .OrderByDescending(cmd => cmd.Name)
-                                            .Select(cmd => cmd.ToHelpText(cropText)));
+            if (singleCommand != null && !commands.Any(cmd => cmd.Name.Equals(singleCommand)))
+            {
+                return new List<string> { "Command does not exist" };
+            }
+            List<string> cmdsText = new();
+            cmdsText.Add(singleCommand != null ? $"=== Showing help for {singleCommand} ===" : "=== Showing command list ===");
+            cmdsText.AddRange(commands.Where(cmd => cmd.CanExecute(permThreshold) && (singleCommand == null || cmd.Name.Equals(singleCommand)))
+                                             .OrderByDescending(cmd => cmd.Name)
+                                             .Select(cmd => cmd.ToHelpText(singleCommand != null, cropText)));
+            return cmdsText;
         }
     }
 }

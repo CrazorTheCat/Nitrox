@@ -3,7 +3,6 @@ using NitroxClient.GameLogic.Bases.Metadata;
 using NitroxClient.GameLogic.InitialSync.Base;
 using NitroxModel.DataStructures.GameLogic;
 using NitroxModel.DataStructures.GameLogic.Buildings.Metadata;
-using NitroxModel.Logger;
 using NitroxModel.Packets;
 
 namespace NitroxClient.GameLogic.InitialSync
@@ -14,7 +13,7 @@ namespace NitroxClient.GameLogic.InitialSync
         {
             DependentProcessors.Add(typeof(BuildingInitialSyncProcessor)); // Meta data augments base pieces so they must be spawned first.
         }
-        
+
         public override IEnumerator Process(InitialPlayerSync packet, WaitScreen.ManualWaitItem waitScreenItem)
         {
             int basePiecesWithMetadata = 0;

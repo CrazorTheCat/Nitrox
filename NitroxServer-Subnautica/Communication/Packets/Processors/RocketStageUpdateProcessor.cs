@@ -1,5 +1,4 @@
 ﻿using NitroxModel.DataStructures.Util;
-using NitroxModel.Logger;
 using NitroxModel_Subnautica.DataStructures.GameLogic;
 using NitroxModel_Subnautica.Packets;
 using NitroxServer.Communication.Packets.Processors.Abstract;
@@ -25,7 +24,15 @@ namespace NitroxServer_Subnautica.Communication.Packets.Processors
 
             if (opRocket.HasValue)
             {
-                opRocket.Value.CurrentStage = packet.NewStage;
+                if (packet.NewStage > opRocket.Value.CurrentStage)
+                {
+                    opRocket.Value.CurrentStage = packet.NewStage;
+                }
+                else
+                {
+                    Log.Error($"{nameof(RocketStageUpdateProcessor)}: Received invalid data to update existing '{packet.Id}' rocket stage (Received : {packet.NewStage}, Expected : {opRocket.Value.CurrentStage + 1})");
+                    //TODO : Handle desync by overriding the stage and reconstruct the rocket client side
+                }
             }
             else
             {
